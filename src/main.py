@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from src.models import Issue
 from src.models import Patch
-from typing import List
+from typing import List, Optional
 from uuid import uuid4
 
 app = FastAPI()
@@ -46,10 +46,12 @@ async def create_issue(issue:Issue):
 
 
 @app.get('/issues', response_model= List[Issue])
-async def get_issues():
+async def get_issues(search: Optional[str] = None, status: Optional[str] = None):
 
     '''
-    Retrieves a list of all submitted tickets. 
+    Retrieves a list of submitted tickets, optionally filtered by search text
+    and status. Search checks both the title and description. Both filters are
+    case-insensitive.
 
     Returns:
         List[Issue] - A list of all issues stored in the in-memory dictionary.
@@ -78,8 +80,26 @@ async def get_issues():
     ]
     '''
 
-    # return statement for the values and puts them into a list
-    return list(issues.values())
+    filtered_issues = list(issues.values())
+
+    if search is not None:
+        search_term = search.lower()
+        filtered_issues = [
+            issue
+            for issue in filtered_issues
+            if search_term in issue.title.lower()
+            or search_term in issue.description.lower()
+        ]
+
+    if status is not None:
+        status_filter = status.lower()
+        filtered_issues = [
+            issue
+            for issue in filtered_issues
+            if issue.status is not None and issue.status.lower() == status_filter
+        ]
+
+    return filtered_issues
 
 @app.get('/issues/{issue_id}', response_model = Issue)
 async def get_issue_by_id(issue_id: str):
@@ -266,5 +286,3 @@ async def update_issues(issue_id, patch_data:Patch):
     issues[issue_id] = stored_issues
 
     return stored_issues
-    
-        
